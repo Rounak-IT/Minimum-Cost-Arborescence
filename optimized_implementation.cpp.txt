@@ -1,0 +1,203 @@
+#include <iostream>
+#include <vector>
+#include <queue>
+#include <climits>
+#include <sys/time.h>
+#include <bits/stdc++.h>
+
+/*
+-- 6
+-- 9
+0 1 10
+0 2 2
+0 3 10
+1 2 1
+2 3 4
+3 4 2
+1 5 8
+4 1 2
+3 5 4
+
+*/
+
+using namespace std;
+
+typedef pair<int, int> pii;
+typedef vector<vector<pii>> Graph;
+
+struct Edge
+{
+    int u, v, weight;
+    Edge(int u, int v, int weight) : u(u), v(v), weight(weight) {}
+};
+bool formsCycle(int u, int v, const vector<int> &parent)
+{
+    int curr = u;
+    while (curr != -1)
+    {
+        if (curr == v)
+        {
+            return true;
+        }
+        curr = parent[curr];
+    }
+    return false;
+}
+void dfs(int node, const Graph &graph, vector<bool> &visited)
+{
+    visited[node] = true;
+    for (const pii &edge : graph[node])
+    {
+        int neighbor = edge.first;
+        if (!visited[neighbor])
+        {
+            dfs(neighbor, graph, visited);
+        }
+    }
+}
+/*vector<int> updateEdge(int u, int v, int weight, vector<Edge>& minCostTreeEdges) {
+    for (Edge& edge : minCostTreeEdges) {
+        if (edge.v == v) {
+            edge.u = u;
+            edge.weight = weight;
+            break;
+        }
+    }
+    return minCostTreeEdges;
+}*/
+vector<int> findMinimumCostTree(const Graph &graph, int root, vector<Edge> &minCostTreeEdges)
+{
+    int numNodes = graph.size();
+    vector<int> parent(numNodes, -1);      // To store the parent of each node in the minimum cost tree
+    vector<int> cost(numNodes, INT_MAX);   // To store the cost of reaching each node
+    vector<bool> visited(numNodes, false); // To mark visited nodes
+
+    priority_queue<pii, vector<pii>, greater<pii>> pq; // Min-Heap for choosing the minimum cost edge
+
+    cost[root] = 0;
+    pq.push({0, root});
+
+    while (!pq.empty())
+    {
+        int u = pq.top().second;
+        pq.pop();
+        visited[u] = true;
+
+        for (const pii &edge : graph[u])
+        {
+            int v = edge.first;
+            int weight = edge.second;
+
+            if (!visited[v] && weight < cost[v])
+            {
+                cost[v] = weight;
+                parent[v] = u;
+                pq.push({cost[v], v});
+            }
+            else if (visited[v] && weight < cost[v] && parent[v] != u && !formsCycle(u, v, parent))
+            {
+                cost[v] = weight;
+                parent[v] = u;
+            }
+        }
+    }
+    return parent;
+}
+bool allNodesReachable(const Graph &graph, int root)
+{
+    int numNodes = graph.size();
+    vector<bool> visited(numNodes, false);
+    dfs(root, graph, visited);
+
+    for (int i = 0; i < numNodes; ++i)
+    {
+        if (!visited[i])
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+int main()
+{
+    struct timeval start, end;
+
+    int numNodes, numEdges;
+    cout << "Enter the number of nodes: ";
+    cin >> numNodes;
+    cout << "Enter the number of edges: ";
+    cin >> numEdges;
+
+    Graph graph(numNodes);
+
+    cout << "Enter the edges and their weights:\n";
+    for (int i = 0; i < numEdges; ++i)
+    {
+        int u, v, weight;
+        cin >> u >> v >> weight;
+        graph[u].push_back({v, weight});
+    }
+
+    int root;
+    cout << "Enter the root node: ";
+    cin >> root;
+    if (!allNodesReachable(graph, root))
+    {
+        cout << "Not all nodes are reachable from the root node.\n";
+        return 0;
+    }
+    gettimeofday(&start, NULL);
+    vector<Edge> minCostTreeEdges;
+    vector<int> minimumCostTree = findMinimumCostTree(graph, root, minCostTreeEdges);
+
+    cout << "Parent of each node in the minimum cost tree:\n";
+    for (int i = 0; i < numNodes; ++i)
+    {
+        cout << "Node " << i << ": ";
+        if (minimumCostTree[i] == -1)
+        {
+            cout << "No parent (root)\n";
+        }
+        else
+        {
+            cout << minimumCostTree[i] << "\n";
+        }
+    }
+    int weight;
+    int sum = 0;
+    for (int i = 0; i < numNodes; i++)
+    {
+        for (const auto &neighbor : graph[minimumCostTree[i]])
+        {
+            if (neighbor.first == i)
+            {
+                weight = neighbor.second; // Weight of the edge (u, v)
+                break;                    // No need to continue iterating
+            }
+        }
+        minCostTreeEdges.push_back(Edge(minimumCostTree[i], i, weight));
+    }
+    cout << "\nEdges of the minimum cost tree:\n";
+    for (const Edge &edge : minCostTreeEdges)
+    {
+        if (edge.v != root)
+        {
+            cout << edge.u << "->" << edge.v << "  Weight(" << edge.weight << ")\n";
+            sum += edge.weight;
+        }
+    }
+
+    printf("The Minimum Cost of the given directed graph is %d", sum);
+
+    gettimeofday(&end, NULL);
+    double time_taken;
+    time_taken = (end.tv_sec - start.tv_sec) * 1e6;
+    time_taken = (time_taken + (end.tv_usec - start.tv_usec)) * 1e-6;
+
+    cout << endl
+         << endl
+         << "Time taken by program is : " << fixed << time_taken << setprecision(6);
+    cout << " sec" << endl;
+    return 0;
+}
